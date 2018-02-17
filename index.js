@@ -1,5 +1,6 @@
 const _ = require('lodash')
 const moment = require('moment')
+const expect = require('chai').expect
 
 module.exports = class PeopleTracker {
   async load(db) {
@@ -21,22 +22,21 @@ module.exports = class PeopleTracker {
       })
       .toArray())
       .map(c => {
-        if (c.state.counter === lastCounter) {
-          c.end = false
-        } else {
+        c.last = true
+        if (c.state.counter !== lastCounter) {
           c.end = moment(c.state.updated)
         }
-        return c
+        return [ c ]
       })
       .keyBy(c => {
-        return c.email
+        return c[0].email
       })
       .value()
 
     let changes = await changesCollection.aggregate([
       {
         $match: {
-          type: { $ne: 'counter' }
+          type: { $nin: [ 'counter', 'left'] }
         },
       },
       {
@@ -66,7 +66,24 @@ module.exports = class PeopleTracker {
         }
       }
     ]).toArray()
-    console.log(changes.length)
-    console.log(changes[0].state.counter)
+    _.each(changes, change => {
+      expect(people).to.have.property(change.email)
+      expect(people[change.email]).to.have.lengthOf.at.least(1)
+      let currentPerson = people[change.email][0]
+      if (change.type === 'joined') {
+        currentPerson.first = true
+        currentPerson.start = moment(change.state.updated)
+        return
+      }
+    })
+
+    _.each(people, persons => {
+      expect(persons).to.have.lengthOf.at.least(1)
+      expect(persons[0].first).to.be.true
+      expect(persons[persons.length - 1].last).to.be.true
+      _.each(persons, person => {
+        expect(person).to.have.property('start')
+      })
+    })
   }
 }
