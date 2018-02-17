@@ -1,7 +1,6 @@
 const _ = require('lodash')
-const mongo = require('mongodb').MongoClient
 
-export default class PeopleTracker {
+module.exports = class PeopleTracker {
   async load(db) {
     let peopleCollection = db.collection('people')
     let changesCollection = db.collection('peopleChanges')
@@ -12,6 +11,7 @@ export default class PeopleTracker {
       .keyBy((c) => {
         return c.state.counter
       })
-    console.log(counters)
+      .value()
+    console.log(_.keys(counters).length)
   }
 }
