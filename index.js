@@ -75,6 +75,13 @@ module.exports = class PeopleTracker {
         currentPerson.start = moment(change.state.updated)
         return
       }
+      if (change.type === 'change') {
+        let previousPerson = _.cloneDeep(currentPerson)
+        currentPerson.start = moment(change.state.updated)
+        previousPerson.end = moment(change.state.updated)
+
+        people[change.email].unshift(previousPerson)
+      }
     })
 
     _.each(people, persons => {
