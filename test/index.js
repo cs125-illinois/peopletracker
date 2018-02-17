@@ -26,9 +26,7 @@ mongo.connect(process.env.MONGO).then(async client => {
         sections.push(currentSection)
       }
     })
-    console.log(`${ persons[0].email }: ${ sections.join(',') }`)
   })
-  console.log(tracker.getAt('marcofon@illinois.edu', moment()))
   client.close()
 })
 
