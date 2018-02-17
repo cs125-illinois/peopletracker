@@ -1,6 +1,7 @@
 const _ = require('lodash')
 const moment = require('moment')
 const expect = require('chai').expect
+const deepDiff = require('deep-diff')
 
 module.exports = class PeopleTracker {
   async load(db) {
@@ -66,6 +67,7 @@ module.exports = class PeopleTracker {
         }
       }
     ]).toArray()
+
     _.each(changes, change => {
       expect(people).to.have.property(change.email)
       expect(people[change.email]).to.have.lengthOf.at.least(1)
@@ -76,14 +78,17 @@ module.exports = class PeopleTracker {
         return
       }
       if (change.type === 'change') {
+        expect(change.diff).to.have.lengthOf.at.least(1)
         let previousPerson = _.cloneDeep(currentPerson)
         currentPerson.start = moment(change.state.updated)
         previousPerson.end = moment(change.state.updated)
-
+        previousPerson.state = change.state
+        _.each(change.diff, c => {
+          deepDiff.revertChange(previousPerson, currentPerson, c)
+        })
         people[change.email].unshift(previousPerson)
       }
     })
-
     _.each(people, persons => {
       expect(persons).to.have.lengthOf.at.least(1)
       expect(persons[0].first).to.be.true
@@ -91,6 +96,18 @@ module.exports = class PeopleTracker {
       _.each(persons, person => {
         expect(person).to.have.property('start')
       })
+    })
+    this.people = people
+
+    return this
+  }
+
+  getAt(email, timestamp) {
+    expect(this.people).to.have.property(email)
+    expect(this.people[email]).to.have.lengthOf.at.least(1)
+    return _.find(this.people[email], person => {
+      let isAfter = timestamp.isAfter(person.start)
+      return isAfter && (!person.end || timestamp.isBefore(person.end))
     })
   }
 }
