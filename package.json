@@ -1,0 +1,19 @@
+{
+  "name": "peoplelib",
+  "version": "0.0.1",
+  "author": "Geoffrey Challen <challen@illinois.edu>",
+  "license": "MIT",
+  "description": "CS125 people library",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cs125-illinois/peoplelib.git"
+  },
+  "scripts": {
+    "standard": "standard lib/*.js --fix --verbose"
+  },
+  "homepage": "https://github.com/cs125-illinois/peoplelib",
+  "dependencies": {
+    "lodash": "^4.17.5",
+    "mongodb": "^3.0.2"
+  }
+}
