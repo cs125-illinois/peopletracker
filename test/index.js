@@ -35,7 +35,7 @@ mongo.connect(process.env.MONGO).then(async client => {
   })
   for (timestamp = tracker.start; timestamp.isBefore(tracker.end); timestamp.add(1, 'day')) {
     let currentTime = moment(timestamp).add(15, 'minutes')
-    let enrollment = tracker.getEnrollmentAt(currentTime)
+    let enrollment = tracker.getEnrollmentAtTime(currentTime)
     expect(enrollment).to.be.ok
   }
   client.close()

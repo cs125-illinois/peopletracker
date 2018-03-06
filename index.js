@@ -5,18 +5,26 @@ const deepDiff = require('deep-diff')
 
 module.exports = class PeopleTracker {
   async load(db) {
-    let peopleCollection = db.collection('people')
     let changesCollection = db.collection('peopleChanges')
-
-    let counters = _(await changesCollection.find({
+    let allCounters = await changesCollection.find({
       type: 'counter'
-    }).toArray())
-      .keyBy(c => {
-        return c.state.counter
-      })
-      .value()
-    let lastCounter = Math.max(..._.keys(counters))
+    }).sort({
+      counter: 1
+    }).toArray()
+    this.startCounter = 1
+    this.endCounter
+    for (let i = 0; i < allCounters.length; i++) {
+      if (allCounters[i + 1]) {
+        allCounters[i].endTime = moment(allCounters[i + 1].state.updated)
+      } else {
+        this.endCounter = allCounters[i].state.counter
+      }
+    }
+    this.counters = _.keyBy(allCounters, c => {
+      return c.state.counter
+    })
 
+    let peopleCollection = db.collection('people')
     let people = _(await peopleCollection.find({ state: { $exists: true } })
       .project({
         photo: 0, thumbnail: 0
@@ -24,8 +32,11 @@ module.exports = class PeopleTracker {
       .toArray())
       .map(c => {
         c.last = true
-        if (c.state.counter !== lastCounter) {
+        if (c.state.counter !== this.endCounter) {
           c.end = moment(c.state.updated)
+          c.endCounter = c.state.counter
+        } else {
+          c.endCounter = this.endCounter
         }
         return [ c ]
       })
@@ -79,13 +90,16 @@ module.exports = class PeopleTracker {
       if (change.type === 'joined') {
         currentPerson.first = true
         currentPerson.start = moment(change.state.updated)
+        currentPerson.startCounter = change.state.counter
         return
       }
       if (change.type === 'change') {
         expect(change.diff).to.have.lengthOf.at.least(1)
         let previousPerson = _.cloneDeep(currentPerson)
         currentPerson.start = moment(change.state.updated)
+        currentPerson.startCounter = change.state.counter
         previousPerson.end = moment(change.state.updated)
+        previousPerson.endCounter = change.state.counter - 1
         previousPerson.state = change.state
         _.each(change.diff, c => {
           deepDiff.revertChange(previousPerson, currentPerson, c)
@@ -93,48 +107,62 @@ module.exports = class PeopleTracker {
         people[change.email].unshift(previousPerson)
       }
     })
+    let peopleByCounter = {}
+    for (let counter = 1; counter <= this.endCounter; counter++) {
+      peopleByCounter[counter] = {}
+    }
     _.each(people, persons => {
       expect(persons).to.have.lengthOf.at.least(1)
       expect(persons[0].first, JSON.stringify(persons)).to.be.true
       expect(persons[persons.length - 1].last).to.be.true
       _.each(persons, person => {
         expect(person).to.have.property('start')
+        expect(person).to.have.property('startCounter')
+        if (person.endCounter) {
+          expect(person.endCounter).to.be.at.least(person.startCounter)
+        }
+        for (let counter = person.startCounter; counter <= person.endCounter; counter++) {
+          peopleByCounter[counter][person.email] = person
+        }
       })
     })
-    this.people = people
+    this.peopleByCounter = peopleByCounter
 
     let enrollmentCollection = db.collection('enrollment')
-    this.enrollment = await enrollmentCollection.find().sort({
-      'state.counter': 1
-    }).toArray()
+    this.enrollmentByCounter = _(await enrollmentCollection.find().sort({
+        'state.counter': 1
+      }).toArray()).keyBy(e => {
+        return e.state.counter
+      })
+      .value()
 
-    this.start = moment(this.enrollment[0].state.updated)
-    this.end = moment(this.enrollment.slice(-1)[0].state.updated)
+    this.start = moment(this.enrollmentByCounter[this.startCounter].state.updated)
+    this.end = moment(this.enrollmentByCounter[this.endCounter].state.updated)
 
     return this
   }
 
-  getPersonAt(email, timestamp) {
-    expect(this.people).to.have.property(email)
-    expect(this.people[email]).to.have.lengthOf.at.least(1)
-    return _.find(this.people[email], person => {
-      let isAfter = timestamp.isAfter(person.start)
-      return isAfter && (!person.end || timestamp.isBefore(person.end))
-    })
+  getCounterAtTime(timestamp) {
+    timestamp = moment.isMoment(timestamp) ? timestamp : moment(timestamp)
+    return _(this.counters).sortBy(counter => {
+      return counter.state.counter
+    }).find(counter => {
+      return timestamp.isAfter(moment(counter.state.updated)) &&
+        (!(counter.endTime) || (timestamp.isBefore(counter.endTime)))
+    }).state.counter
   }
 
-  getEnrollmentAt(timestamp) {
-    timestamp = moment.isMoment(timestamp) ? timestamp : moment(timestamp)
-    for (let index = 0; index < this.enrollment.length; index++) {
-      let thisRecord = this.enrollment[index]
-      let nextRecord = this.enrollment[index + 1]
+  getPersonAtCounter(email, counter) {
+    return this.peopleByCounter[counter]
+  }
+  getPersonAtTime(email, timestamp) {
+    return this.getPersonAtCounter(this.getCounterAtTime(timestamp))
+  }
 
-      let isAfter = timestamp.isSame(moment(thisRecord.state.updated)) ||
-        timestamp.isAfter(moment(thisRecord.state.updated))
-      let isBefore = nextRecord ? timestamp.isBefore(moment(nextRecord.state.updated)) : true
-      if (isAfter && isBefore) {
-        return thisRecord
-      }
-    }
+  getEnrollmentAtCounter(counter) {
+    return this.enrollmentByCounter[counter]
+  }
+  getEnrollmentAtTime(timestamp) {
+    return this.getEnrollmentAtCounter(this.getCounterAtTime(timestamp))
   }
 }
