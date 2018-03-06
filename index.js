@@ -19,7 +19,7 @@ module.exports = class PeopleTracker {
 
     let people = _(await peopleCollection.find({ state: { $exists: true } })
       .project({
-        photo: 0
+        photo: 0, thumbnail: 0
       })
       .toArray())
       .map(c => {
@@ -30,6 +30,7 @@ module.exports = class PeopleTracker {
         return [ c ]
       })
       .keyBy(c => {
+        expect(c[0]).to.have.property('email')
         return c[0].email
       })
       .value()
@@ -46,7 +47,10 @@ module.exports = class PeopleTracker {
             $filter: {
               input: "$diff",
               as: "d",
-              cond: { $not: { $in: [ 'thumbnail', 'photo', "$$d.path" ] } }
+              cond: { $and: [
+                { $not: { $in: [ 'photo', "$$d.path" ] } },
+                { $not: { $in: [ 'thumbnail', "$$d.path" ] } }
+              ] }
             }
           }
         }
@@ -91,7 +95,7 @@ module.exports = class PeopleTracker {
     })
     _.each(people, persons => {
       expect(persons).to.have.lengthOf.at.least(1)
-      expect(persons[0].first).to.be.true
+      expect(persons[0].first, JSON.stringify(persons)).to.be.true
       expect(persons[persons.length - 1].last).to.be.true
       _.each(persons, person => {
         expect(person).to.have.property('start')
