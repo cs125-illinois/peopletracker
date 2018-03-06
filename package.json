@@ -1,18 +1,18 @@
 {
-  "name": "peoplelib",
+  "name": "peopletracker",
   "version": "0.0.1",
   "author": "Geoffrey Challen <challen@illinois.edu>",
   "license": "MIT",
   "description": "CS125 people library",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cs125-illinois/peoplelib.git"
+    "url": "https://github.com/cs125-illinois/peopletracker.git"
   },
   "scripts": {
     "standard": "standard lib/*.js --fix --verbose"
   },
   "main": "index.js",
-  "homepage": "https://github.com/cs125-illinois/peoplelib",
+  "homepage": "https://github.com/cs125-illinois/peopletracker",
   "dependencies": {
     "chai": "^4.1.2",
     "deep-diff": "^0.3.8",

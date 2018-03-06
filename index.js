@@ -46,7 +46,7 @@ module.exports = class PeopleTracker {
             $filter: {
               input: "$diff",
               as: "d",
-              cond: { $not: { $in: [ 'photo', "$$d.path" ] } }
+              cond: { $not: { $in: [ 'thumbnail', 'photo', "$$d.path" ] } }
             }
           }
         }
