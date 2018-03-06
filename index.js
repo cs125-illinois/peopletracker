@@ -152,8 +152,15 @@ module.exports = class PeopleTracker {
     }).state.counter
   }
 
-  getPersonAtCounter(email, counter) {
+  getPeopleAtCounter(counter) {
     return this.peopleByCounter[counter]
+  }
+  getPeopleAtTime(timestamp) {
+    return this.getPeopleAtCounter(this.getCounterAtTime(timestamp))
+  }
+
+  getPersonAtCounter(email, counter) {
+    return this.peopleByCounter[counter][email]
   }
   getPersonAtTime(email, timestamp) {
     return this.getPersonAtCounter(this.getCounterAtTime(timestamp))
