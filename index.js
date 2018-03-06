@@ -103,15 +103,38 @@ module.exports = class PeopleTracker {
     })
     this.people = people
 
+    let enrollmentCollection = db.collection('enrollment')
+    this.enrollment = await enrollmentCollection.find().sort({
+      'state.counter': 1
+    }).toArray()
+
+    this.start = moment(this.enrollment[0].state.updated)
+    this.end = moment(this.enrollment.slice(-1)[0].state.updated)
+
     return this
   }
 
-  getAt(email, timestamp) {
+  getPersonAt(email, timestamp) {
     expect(this.people).to.have.property(email)
     expect(this.people[email]).to.have.lengthOf.at.least(1)
     return _.find(this.people[email], person => {
       let isAfter = timestamp.isAfter(person.start)
       return isAfter && (!person.end || timestamp.isBefore(person.end))
     })
+  }
+
+  getEnrollmentAt(timestamp) {
+    timestamp = moment.isMoment(timestamp) ? timestamp : moment(timestamp)
+    for (let index = 0; index < this.enrollment.length; index++) {
+      let thisRecord = this.enrollment[index]
+      let nextRecord = this.enrollment[index + 1]
+
+      let isAfter = timestamp.isSame(moment(thisRecord.state.updated)) ||
+        timestamp.isAfter(moment(thisRecord.state.updated))
+      let isBefore = nextRecord ? timestamp.isBefore(moment(nextRecord.state.updated)) : true
+      if (isAfter && isBefore) {
+        return thisRecord
+      }
+    }
   }
 }

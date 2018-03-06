@@ -4,6 +4,8 @@ require('dotenv').config()
 const _ = require('lodash')
 const moment = require('moment')
 const mongo = require('mongodb').MongoClient
+const expect = require('chai').expect
+
 const PeopleTracker = require('../index.js')
 
 mongo.connect(process.env.MONGO).then(async client => {
@@ -14,6 +16,9 @@ mongo.connect(process.env.MONGO).then(async client => {
     }
     let sections = []
     _.each(persons, person => {
+      if (!person.active) {
+        return
+      }
       let currentSection
       if (person.AL1) {
         currentSection = 'AL1'
@@ -26,7 +31,13 @@ mongo.connect(process.env.MONGO).then(async client => {
         sections.push(currentSection)
       }
     })
+    // console.log(persons[0].email, sections.join(', '))
   })
+  for (timestamp = tracker.start; timestamp.isBefore(tracker.end); timestamp.add(1, 'day')) {
+    let currentTime = moment(timestamp).add(15, 'minutes')
+    let enrollment = tracker.getEnrollmentAt(currentTime)
+    expect(enrollment).to.be.ok
+  }
   client.close()
 }).catch(err => {
   console.log(err)
