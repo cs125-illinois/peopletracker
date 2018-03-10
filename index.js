@@ -163,7 +163,7 @@ module.exports = class PeopleTracker {
     return this.peopleByCounter[counter][email]
   }
   getPersonAtTime(email, timestamp) {
-    return this.getPersonAtCounter(this.getCounterAtTime(timestamp))
+    return this.getPersonAtCounter(email, this.getCounterAtTime(timestamp))
   }
 
   getEnrollmentAtCounter(counter) {
