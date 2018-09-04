@@ -4,16 +4,24 @@ const expect = require('chai').expect
 const deepDiff = require('deep-diff')
 
 module.exports = class PeopleTracker {
+  constructor(semester) {
+    this.semester = semester
+  }
+
   async load(db) {
     let changesCollection = db.collection('peopleChanges')
     let allCounters = await changesCollection.find({
-      type: 'counter'
+      type: 'counter',
+      semester: this.semester
     }).sort({
       counter: 1
     }).toArray()
-    this.startCounter = 1
+    this.startCounter
     this.endCounter
     for (let i = 0; i < allCounters.length; i++) {
+      if (!this.startCounter) {
+        this.startCounter = allCounters[i].state.counter
+      }
       if (allCounters[i + 1]) {
         allCounters[i].endTime = moment(allCounters[i + 1].state.updated)
       } else {
@@ -25,8 +33,9 @@ module.exports = class PeopleTracker {
     })
 
     let peopleCollection = db.collection('people')
-    let people = _(await peopleCollection.find({ state: { $exists: true } })
-      .project({
+    let people = _(await peopleCollection.find({
+        state: { $exists: true }, semester: this.semester
+      }).project({
         photo: 0, thumbnail: 0
       })
       .toArray())
@@ -49,7 +58,8 @@ module.exports = class PeopleTracker {
     let changes = await changesCollection.aggregate([
       {
         $match: {
-          type: { $nin: [ 'counter', 'left'] }
+          type: { $nin: [ 'counter', 'left'] },
+          semester: this.semester
         },
       },
       {
@@ -129,7 +139,9 @@ module.exports = class PeopleTracker {
     this.peopleByCounter = peopleByCounter
 
     let enrollmentCollection = db.collection('enrollment')
-    this.enrollmentByCounter = _(await enrollmentCollection.find().sort({
+    this.enrollmentByCounter = _(await enrollmentCollection.find({
+        semester: this.semester
+      }).sort({
         'state.counter': 1
       }).toArray()).keyBy(e => {
         return e.state.counter

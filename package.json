@@ -15,10 +15,10 @@
   "homepage": "https://github.com/cs125-illinois/peopletracker",
   "dependencies": {
     "chai": "^4.1.2",
-    "deep-diff": "^0.3.8",
-    "dotenv": "^5.0.0",
-    "lodash": "^4.17.5",
-    "moment": "^2.20.1",
-    "mongodb": "^3.0.2"
+    "deep-diff": "^1.0.2",
+    "dotenv": "^6.0.0",
+    "lodash": "^4.17.10",
+    "moment": "^2.22.2",
+    "mongodb": "^3.1.4"
   }
 }
