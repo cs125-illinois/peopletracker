@@ -153,9 +153,6 @@ module.exports = class PeopleTracker {
       })
       .value()
 
-    this.start = moment(this.enrollmentByCounter[this.startCounter].state.updated)
-    this.end = moment(this.enrollmentByCounter[this.endCounter].state.updated)
-
     return this
   }
 
