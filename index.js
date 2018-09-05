@@ -16,18 +16,23 @@ module.exports = class PeopleTracker {
     }).sort({
       counter: 1
     }).toArray()
-    this.startCounter
-    this.endCounter
     for (let i = 0; i < allCounters.length; i++) {
       if (!this.startCounter) {
+        this.start = allCounters[i].state.updated
         this.startCounter = allCounters[i].state.counter
       }
       if (allCounters[i + 1]) {
         allCounters[i].endTime = moment(allCounters[i + 1].state.updated)
       } else {
+        this.end = allCounters[i].state.updated
         this.endCounter = allCounters[i].state.counter
       }
     }
+    expect(this.start).to.be.ok
+    expect(this.end).to.be.ok
+    expect(this.startCounter).to.be.ok
+    expect(this.endCounter).to.be.ok
+
     this.counters = _.keyBy(allCounters, c => {
       return c.state.counter
     })
