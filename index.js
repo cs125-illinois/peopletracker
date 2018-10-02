@@ -97,7 +97,7 @@ module.exports = class PeopleTracker {
           'state.counter': -1
         }
       }
-    ]).toArray()
+    ], { allowDiskUse: true }).toArray()
 
     _.each(changes, change => {
       expect(people).to.have.property(change.email)
