@@ -12,7 +12,6 @@ module.exports = class PeopleTracker {
     let changesCollection = db.collection('peopleChanges')
     let allCounters = await changesCollection.find({
       type: 'counter',
-      ignore: { $ne: true },
       semester: this.semester
     }).sort({
       counter: 1
