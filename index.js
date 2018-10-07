@@ -46,12 +46,7 @@ module.exports = class PeopleTracker {
       .toArray())
       .map(c => {
         c.last = true
-        if (c.state.counter !== this.endCounter) {
-          c.end = moment(c.state.updated)
-          c.endCounter = c.state.counter
-        } else {
-          c.endCounter = this.endCounter
-        }
+        c.endCounter = this.endCounter
         return [ c ]
       })
       .keyBy(c => {
@@ -63,7 +58,7 @@ module.exports = class PeopleTracker {
     let changes = await changesCollection.aggregate([
       {
         $match: {
-          type: { $nin: [ 'counter', 'left'] },
+          type: { $nin: [ 'counter' ] },
           semester: this.semester
         },
       },
@@ -85,8 +80,7 @@ module.exports = class PeopleTracker {
         $match: {
           $or: [
             { type: { $ne: 'change' } },
-            { type: 'change',
-              'diff.0': { $exists: true }
+            { type: 'change', 'diff.0': { $exists: true }
             }
           ]
         }
@@ -96,7 +90,7 @@ module.exports = class PeopleTracker {
           'state.counter': -1
         }
       }
-    ], { allowDiskUse: true }).toArray()
+    ]).toArray()
 
     _.each(changes, change => {
       expect(people).to.have.property(change.email)
@@ -106,24 +100,47 @@ module.exports = class PeopleTracker {
         currentPerson.first = true
         currentPerson.start = moment(change.state.updated)
         currentPerson.startCounter = change.state.counter
+        currentPerson.active = true
+        currentPerson.left = false
+        return
+      }
+      if (change.type === 'left') {
+        let previousPerson = _.cloneDeep(currentPerson)
+        currentPerson.start = moment(change.state.updated)
+        currentPerson.startCounter = change.state.counter
+        currentPerson.active = false
+        currentPerson.left = true
+        previousPerson.end = moment(change.state.updated)
+        previousPerson.endCounter = change.state.counter - 1
+        previousPerson.state = change.state
+        previousPerson.active = true
+        previousPerson.left = false
+        people[change.email].unshift(previousPerson)
         return
       }
       if (change.type === 'change') {
         expect(change.diff).to.have.lengthOf.at.least(1)
         let previousPerson = _.cloneDeep(currentPerson)
+        _.each(change.diff, c => {
+          deepDiff.revertChange(previousPerson, currentPerson, c)
+          if (_.isEqual(previousPerson, currentPerson)) {
+            if (c.path.indexOf('left') !== -1) {
+              previousPerson.active = true
+              currentPerson.active = false
+            }
+          }
+        })
         currentPerson.start = moment(change.state.updated)
         currentPerson.startCounter = change.state.counter
         previousPerson.end = moment(change.state.updated)
         previousPerson.endCounter = change.state.counter - 1
         previousPerson.state = change.state
-        _.each(change.diff, c => {
-          deepDiff.revertChange(previousPerson, currentPerson, c)
-        })
         people[change.email].unshift(previousPerson)
+        return
       }
     })
     let peopleByCounter = {}
-    for (let counter = 1; counter <= this.endCounter; counter++) {
+    for (let counter = this.startCounter; counter <= this.endCounter; counter++) {
       peopleByCounter[counter] = {}
     }
     _.each(people, persons => {
@@ -133,9 +150,8 @@ module.exports = class PeopleTracker {
       _.each(persons, person => {
         expect(person).to.have.property('start')
         expect(person).to.have.property('startCounter')
-        if (person.endCounter) {
-          expect(person.endCounter).to.be.at.least(person.startCounter)
-        }
+        expect(person).to.have.property('endCounter')
+        expect(person.endCounter, person.email).to.be.at.least(person.startCounter)
         for (let counter = person.startCounter; counter <= person.endCounter; counter++) {
           peopleByCounter[counter][person.email] = person
         }
@@ -152,6 +168,24 @@ module.exports = class PeopleTracker {
         return e.state.counter
       })
       .value()
+
+    let lastEnrollments
+    for (let counter = this.startCounter; counter <= this.endCounter; counter++) {
+      if (this.enrollmentByCounter[counter]) {
+        lastEnrollments = this.enrollmentByCounter[counter]
+      } else {
+        this.enrollmentByCounter[counter] = lastEnrollments
+      }
+      expect(this.enrollmentsByCounter).to.be.ok
+      /*
+      let activeCount = _.filter(this.peopleByCounter[counter], person => {
+        return person.role === 'student' && person.active
+      }).length
+      let inActiveCount = _.filter(this.peopleByCounter[counter], person => {
+        return person.role === 'student' && !person.active
+      }).length
+      */
+    }
 
     return this
   }
