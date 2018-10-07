@@ -177,15 +177,13 @@ module.exports = class PeopleTracker {
         this.enrollmentByCounter[counter] = lastEnrollments
       }
       expect(this.enrollmentsByCounter).to.be.ok
-      /*
-      let activeCount = _.filter(this.peopleByCounter[counter], person => {
-        return person.role === 'student' && person.active
-      }).length
-      let inActiveCount = _.filter(this.peopleByCounter[counter], person => {
-        return person.role === 'student' && !person.active
-      }).length
-      */
     }
+    let latestComputedPeople = this.peopleByCounter[this.endCounter]
+    let latestPeople = _(await peopleCollection.find({
+        state: { $exists: true }, semester: this.semester
+    }).toArray()).keyBy('email').value()
+
+    expect(_.difference(_.keys(latestComputedPeople), _.keys(latestPeople)).length).to.equal(0)
 
     return this
   }
