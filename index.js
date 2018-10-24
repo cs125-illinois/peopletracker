@@ -10,11 +10,13 @@ module.exports = class PeopleTracker {
 
   async load(db) {
     let changesCollection = db.collection('peopleChanges')
+    changesCollection.createIndex({ 'state.counter': 1 })
+    changesCollection.createIndex({ type: 1, semester: 1 })
     let allCounters = await changesCollection.find({
       type: 'counter',
       semester: this.semester
     }).sort({
-      counter: 1
+      'state.counter': 1
     }).toArray()
     for (let i = 0; i < allCounters.length; i++) {
       if (!this.startCounter) {
@@ -93,6 +95,8 @@ module.exports = class PeopleTracker {
     ]).toArray()
 
     _.each(changes, change => {
+      expect(change.state.counter).to.be.at.most(this.endCounter)
+
       expect(people).to.have.property(change.email)
       expect(people[change.email]).to.have.lengthOf.at.least(1)
       let currentPerson = people[change.email][0]
@@ -153,6 +157,7 @@ module.exports = class PeopleTracker {
         expect(person).to.have.property('endCounter')
         expect(person.endCounter, person.email).to.be.at.least(person.startCounter)
         for (let counter = person.startCounter; counter <= person.endCounter; counter++) {
+          expect(peopleByCounter[counter]).to.be.ok()
           peopleByCounter[counter][person.email] = person
         }
       })
