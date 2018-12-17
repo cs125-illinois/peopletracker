@@ -199,7 +199,7 @@ module.exports = class PeopleTracker {
       return counter.state.counter
     }).find(counter => {
       return timestamp.isAfter(moment(counter.state.updated)) &&
-        (!(counter.endTime) || (timestamp.isBefore(counter.endTime)))
+        (!(counter.endTime) || (timestamp.isSameOrBefore(counter.endTime)))
     }).state.counter
   }
 
