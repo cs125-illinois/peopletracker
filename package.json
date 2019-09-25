@@ -1,6 +1,6 @@
 {
   "name": "peopletracker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Geoffrey Challen <challen@illinois.edu>",
   "license": "MIT",
   "description": "CS125 people library",
@@ -16,10 +16,10 @@
   "dependencies": {
     "chai": "^4.2.0",
     "deep-diff": "^1.0.2",
-    "dotenv": "^6.2.0",
-    "fs-extra": "^7.0.1",
-    "lodash": "^4.17.11",
+    "dotenv": "^8.1.0",
+    "fs-extra": "^8.1.0",
+    "lodash": "^4.17.15",
     "moment": "^2.24.0",
-    "mongodb": "^3.1.13"
+    "mongodb": "^3.3.2"
   }
 }

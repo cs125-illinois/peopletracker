@@ -5,12 +5,13 @@ const deepDiff = require('deep-diff')
 const fs = require('fs-extra')
 
 module.exports = class PeopleTracker {
-  constructor(semester) {
+  constructor(semester, db) {
     this.semester = semester
+    this.db = db
   }
 
-  async load(db) {
-    let changesCollection = db.collection('peopleChanges')
+  async load() {
+    let changesCollection = this.db.collection('peopleChanges')
     changesCollection.createIndex({ 'state.counter': 1 })
     changesCollection.createIndex({ type: 1, semester: 1 })
     let allCounters = await changesCollection.find({
@@ -40,27 +41,7 @@ module.exports = class PeopleTracker {
       return c.state.counter
     })
 
-    let enrollmentCollection = db.collection('enrollment')
-    this.enrollmentByCounter = _(await enrollmentCollection.find({
-        semester: this.semester
-      }).sort({
-        'state.counter': 1
-      }).toArray()).keyBy(e => {
-        return e.state.counter
-      })
-      .value()
-
-    let lastEnrollments
-    for (let counter = this.startCounter; counter <= this.endCounter; counter++) {
-      if (this.enrollmentByCounter[counter]) {
-        lastEnrollments = this.enrollmentByCounter[counter]
-      } else {
-        this.enrollmentByCounter[counter] = lastEnrollments
-      }
-    }
-
-
-    let peopleCollection = db.collection('people')
+    let peopleCollection = this.db.collection('people')
     this.people = _(await peopleCollection.find({
         state: { $exists: true }, semester: this.semester
       }).project({
@@ -147,7 +128,14 @@ module.exports = class PeopleTracker {
         expect(change.diff).to.have.lengthOf.at.least(1)
         let previousPerson = _.cloneDeep(currentPerson)
         _.each(change.diff, c => {
-          deepDiff.revertChange(previousPerson, currentPerson, c)
+          try {
+            deepDiff.revertChange(previousPerson, currentPerson, c)
+          } catch (err) {
+            if (c.kind === 'A' && c.path.length === 1) {
+              previousPerson[c.path[0]] = []
+            }
+            deepDiff.revertChange(previousPerson, currentPerson, c)
+          }
           if (_.isEqual(previousPerson, currentPerson)) {
             if (c.path.indexOf('left') !== -1) {
               previousPerson.active = true
@@ -164,10 +152,13 @@ module.exports = class PeopleTracker {
         return
       }
     })
-    return this.loadPeopleByCounter()
+    await this.loadPeopleByCounter()
+    return this.loadEnrollmentByCounter()
   }
 
-  loadPeopleByCounter() {
+  async loadPeopleByCounter() {
+    let peopleCollection = this.db.collection('people')
+
     this.peopleByCounter = {}
     for (let counter = this.startCounter; counter <= this.endCounter; counter++) {
       this.peopleByCounter[counter] = {}
@@ -182,7 +173,6 @@ module.exports = class PeopleTracker {
         expect(person).to.have.property('endCounter')
         expect(person.endCounter, person.email).to.be.at.least(person.startCounter)
         for (let counter = person.startCounter; counter <= person.endCounter; counter++) {
-          expect(this.peopleByCounter[counter]).to.be.ok
           this.peopleByCounter[counter][person.email] = person
         }
       })
@@ -194,6 +184,29 @@ module.exports = class PeopleTracker {
     }).toArray()).keyBy('email').value()
 
     expect(_.difference(_.keys(latestComputedPeople), _.keys(latestPeople)).length).to.equal(0)
+
+    return this
+  }
+
+  async loadEnrollmentByCounter() {
+    let enrollmentCollection = this.db.collection('enrollment')
+    this.enrollmentByCounter = _(await enrollmentCollection.find({
+        semester: this.semester
+      }).sort({
+        'state.counter': 1
+      }).toArray()).keyBy(e => {
+        return e.state.counter
+      })
+      .value()
+
+    let lastEnrollments
+    for (let counter = this.startCounter; counter <= this.endCounter; counter++) {
+      if (this.enrollmentByCounter[counter]) {
+        lastEnrollments = this.enrollmentByCounter[counter]
+      } else {
+        this.enrollmentByCounter[counter] = lastEnrollments
+      }
+    }
 
     return this
   }
@@ -230,13 +243,23 @@ module.exports = class PeopleTracker {
   }
 
   async saveToFile(filename) {
-    console.log(this.peopleByCounter)
-    // return fs.writeFile(filename, JSON.stringify(this, null, 2))
+    return fs.writeFile(filename, JSON.stringify({
+      semester: this.semester,
+      start: this.start,
+      end: this.end,
+      startCounter: this.startCounter,
+      endCounter: this.endCounter,
+      counters: this.counters,
+      people: this.people,
+    }, null, 2))
   }
+
   async loadFromFile(filename) {
     const saved = JSON.parse(await fs.readFile(filename))
     _.each(saved, (value, key) => {
       this[key] = value
     })
+    await this.loadPeopleByCounter()
+    return this.loadEnrollmentByCounter()
   }
 }

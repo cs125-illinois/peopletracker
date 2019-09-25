@@ -8,35 +8,13 @@ const expect = require('chai').expect
 
 const PeopleTracker = require('../index.js')
 
-mongo.connect(process.env.MONGO).then(async client => {
-  let tracker = await new PeopleTracker().load(client.db('Spring2018'))
-  _.each(tracker.people, persons => {
-    if (!(persons[0].role === 'student')) {
-      return
-    }
-    let sections = []
-    _.each(persons, person => {
-      if (!person.active) {
-        return
-      }
-      let currentSection
-      if (person.AL1) {
-        currentSection = 'AL1'
-      } else if (person.AL2) {
-        currentSection = 'AL2'
-      } else {
-        currentSection = '?'
-      }
-      if (sections.length === 0 || sections[sections.length - 1] != currentSection) {
-        sections.push(currentSection)
-      }
-    })
-    // console.log(persons[0].email, sections.join(', '))
-  })
-  for (timestamp = tracker.start; timestamp.isBefore(tracker.end); timestamp.add(1, 'day')) {
+mongo.connect(process.env.MONGO, { useNewUrlParser: true, useUnifiedTopology: true }).then(async client => {
+  let tracker = await new PeopleTracker(process.env.SEMESTER, client.db('cs125')).load()
+  for (timestamp = moment(tracker.start); timestamp.isBefore(moment(tracker.end)); timestamp.add(1, 'day')) {
     let currentTime = moment(timestamp).add(15, 'minutes')
     let enrollment = tracker.getEnrollmentAtTime(currentTime)
     expect(enrollment).to.be.ok
+    console.log(timestamp)
   }
   client.close()
 }).catch(err => {
